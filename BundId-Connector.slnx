@@ -1,1 +1,5 @@
-<Solution />
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BundId.SAMLProxy/BundId.SAMLProxy.csproj" />
+  </Folder>
+</Solution>
