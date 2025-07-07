@@ -1,9 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+
+		<RootNamespace>JGUZDV.BundId.SAMLProxy</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ITfoxtec.Identity.Saml2.MvcCore" Version="4.15.3" />
+
+		<PackageReference Include="JGUZDV.AspNetCore.Authentication.Cookies" Version="1.0.0" />
+		<PackageReference Include="JGUZDV.AspNetCore.Hosting" Version="1.5.16" />
+		<PackageReference Include="JGUZDV.AspNetCore.DataProtection" Version="2.0.1" />
+		<PackageReference Include="JGUZDV.AspNetCore.Logging" Version="1.2.14" />
+	</ItemGroup>
+
 
 </Project>
