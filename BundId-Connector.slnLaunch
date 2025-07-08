@@ -1,0 +1,17 @@
+[
+  {
+    "Name": "IDP and TestSP",
+    "Projects": [
+      {
+        "Path": "src\\BundId.SAMLProxy\\BundId.SAMLProxy.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      },
+      {
+        "Path": "test\\BundID.TestSP\\BundId.TestSP.csproj",
+        "Action": "Start",
+        "DebugTarget": "https"
+      }
+    ]
+  }
+]

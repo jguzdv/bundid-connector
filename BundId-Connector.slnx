@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/BundId.SAMLProxy/BundId.SAMLProxy.csproj" />
   </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/BundID.TestSP/BundId.TestSP.csproj" />
+  </Folder>
 </Solution>
