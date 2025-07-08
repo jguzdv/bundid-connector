@@ -26,15 +26,6 @@ public static class SAMLEndpoints
             .WithName(nameof(PerformSAMlLogin))
             .RequireAuthorization();
 
-
-        //var sp = endpoints.MapGroup("saml2/sp");
-
-        //sp.MapGet("/post", ConsumeSAMLToken)
-        //    .WithName(nameof(ConsumeSAMLToken))
-        //    .RequireAuthorization();
-
-        //sp.MapGet("/login", InitializeUpstreamLogin)
-
         return endpoints;
     }
 
