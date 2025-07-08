@@ -1,4 +1,7 @@
 ﻿using ITfoxtec.Identity.Saml2;
+using ITfoxtec.Identity.Saml2.MvcCore;
+using ITfoxtec.Identity.Saml2.Schemas;
+using System.Security.Authentication;
 
 namespace JGUZDV.BundId.SAMLProxy.Endpoints
 {
@@ -13,6 +16,9 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
 
             idp.MapGet("/auth", InitBundIdAuth)
                 .WithName(nameof(InitBundIdAuth))
+                .RequireAuthorization();
+            idp.MapPost("/auth", SignInBundId)
+                .WithName(nameof(SignInBundId))
                 .RequireAuthorization();
 
             return endpoints;
@@ -43,43 +49,27 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
         }
 
 
-        //[Route("/saml2/login"), HttpGet]
-        //public IActionResult Login(string? returnUrl,
-        //[FromServices] Saml2Configuration samlConfig)
-        //{
-        //    var binding = new Saml2RedirectBinding();
-        //    binding.SetRelayStateQuery(
-        //        new Dictionary<string, string>
-        //        {
-        //        { _relayStateReturnUrl, returnUrl ?? Url.Content("~/") }
-        //        }
-        //    );
+        public static async Task<IResult> SignInBundId(
+            HttpContext context,
+            Saml2Configuration samlConfig
+            )
+        {
+            var httpRequest = context.Request.ToGenericHttpRequest(validate: true);
+            var saml2AuthnResponse = new Saml2AuthnResponse(samlConfig);
 
-        //    var samlAuthnRequest = new Saml2AuthnRequest(samlConfig);
-        //    samlAuthnRequest.Issuer = GetEntityId();
-        //    return binding.Bind(samlAuthnRequest).ToActionResult();
-        //}
+            httpRequest.Binding.ReadSamlResponse(httpRequest, saml2AuthnResponse);
+            if (saml2AuthnResponse.Status != Saml2StatusCodes.Success)
+            {
+                throw new AuthenticationException($"SAML Response status: {saml2AuthnResponse.Status}");
+            }
 
-        //[Route("/saml2/redirect/post"), HttpPost]
-        //public async Task<IActionResult> PostBinding(
-        //    [FromServices] Saml2Configuration samlConfig)
-        //{
-        //    var httpRequest = Request.ToGenericHttpRequest(validate: true);
-        //    var saml2AuthnResponse = new Saml2AuthnResponse(samlConfig);
+            httpRequest.Binding.Unbind(httpRequest, saml2AuthnResponse);
+            await saml2AuthnResponse.CreateSession(context, claimsTransform: ClaimsTransform.Transform);
 
-        //    httpRequest.Binding.ReadSamlResponse(httpRequest, saml2AuthnResponse);
-        //    if (saml2AuthnResponse.Status != Saml2StatusCodes.Success)
-        //    {
-        //        throw new AuthenticationException($"SAML Response status: {saml2AuthnResponse.Status}");
-        //    }
-        //    httpRequest.Binding.Unbind(httpRequest, saml2AuthnResponse);
-        //    await saml2AuthnResponse.CreateSession(HttpContext, claimsTransform: ClaimsTransform.Transform);
+            var relayStateQuery = httpRequest.Binding.GetRelayStateQuery();
+            relayStateQuery.TryGetValue("returnUrl", out var returnUrl);
 
-        //    var relayStateQuery = httpRequest.Binding.GetRelayStateQuery();
-        //    relayStateQuery.TryGetValue(_relayStateReturnUrl, out var returnUrl);
-        //    returnUrl ??= Url.Content("~/");
-
-        //    return Redirect(returnUrl);
-        //}
+            return Results.Redirect(returnUrl);
+        }
     }
 }
