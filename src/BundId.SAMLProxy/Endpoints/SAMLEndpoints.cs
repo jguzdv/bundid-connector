@@ -33,7 +33,7 @@ public static class SAMLEndpoints
     internal static IResult GetMetadata(
         HttpContext context,
         LinkGenerator linkGenerator,
-        Saml2Configuration samlConfig,
+        [FromKeyedServices("Saml2IDP")] Saml2Configuration samlConfig,
         CertificateContainer certificateContainer,
         MetadataContainer metadataContainer)
     {
@@ -103,7 +103,7 @@ public static class SAMLEndpoints
 
     internal static async Task<IResult> PerformSAMlLogin(
         HttpContext context,
-        Saml2Configuration samlConfig,
+        [FromKeyedServices("Saml2IDP")] Saml2Configuration samlConfig,
         CertificateContainer certificateContainer,
         MetadataContainer metadataContainer,
         ILogger<SecurityAudit> auditLogger)
@@ -117,10 +117,6 @@ public static class SAMLEndpoints
         {
             // Get an existing reylingParty entry from the metadataContainer, or fetch it if it is not present.
             relyingParty = await metadataContainer.GetByEntityId(samlRequest.Issuer);
-        }
-        catch (MetadataLoaderException)
-        {
-            throw new BadHttpRequestException("SAML2:RelyingPartyNotLoaded");
         }
         catch (InvalidOperationException)
         {

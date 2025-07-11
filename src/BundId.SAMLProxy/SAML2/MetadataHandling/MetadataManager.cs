@@ -48,16 +48,16 @@ internal class MetadataManager : IHostedService
     {
         foreach (var entry in _options.Value.MetadataDescriptors)
         {
-            _ = InitializeMetadataSource(entry);
+            InitializeMetadataSource(entry);
         }
 
         return Task.CompletedTask;
     }
 
 
-    public async Task InitializeMetadataSource(MetadataDescriptor entry)
+    public void InitializeMetadataSource(MetadataDescriptor entry)
     {
-        var timer = new PeriodicTimer(TimeSpan.Zero);
+        var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(1));
         _timers.Add(timer);
 
         _ = PeriodicallyReloadMetadata(entry, timer);
@@ -90,7 +90,7 @@ internal class MetadataManager : IHostedService
                 entityDescriptor = await entityDescriptorLoader;
                 timer.Period = entry.RefreshInterval;
 
-                _ = _metadataContainer.AddOrReplace(entry.EntityId, entityDescriptor);
+                _metadataContainer.AddOrReplace(entry.EntityId, entityDescriptor);
             }
             catch (OperationCanceledException)
             {

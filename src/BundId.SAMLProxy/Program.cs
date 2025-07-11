@@ -1,13 +1,10 @@
-
 using ITfoxtec.Identity.Saml2;
 using ITfoxtec.Identity.Saml2.Schemas;
 using JGUZDV.AspNetCore.Hosting;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
 using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
@@ -53,6 +50,10 @@ services.AddHostedService<CertificateManager>();
 services.AddKeyedScoped("Saml2IDP", (sp, key) => sp.GetRequiredService<IOptionsSnapshot<Saml2Configuration>>().Get((string)key));
 services.AddOptions<Saml2Configuration>("Saml2IDP")
     .Bind(builder.Configuration.GetSection("Saml2:IDP"))
+    .Configure<IConfiguration>((saml2, config) =>
+    {
+        saml2.Issuer = config.GetValue<string>("Saml2:EntityId") ?? throw new InvalidOperationException("Saml2:IDP:EntityId is not configured.");
+    })
     .PostConfigure<CertificateContainer>((saml2, certificateContainer) =>
     {
         saml2.AllowedAudienceUris.Add(saml2.Issuer);
@@ -61,22 +62,24 @@ services.AddOptions<Saml2Configuration>("Saml2IDP")
         saml2.SigningCertificate = certificateContainer.GetSignatureCertificate();
     });
 
-services.AddKeyedScoped("Saml2SP", (sp, key) => sp.GetRequiredService<IOptionsSnapshot<Saml2Configuration>>().Get((string)key));
-services.AddOptions<Saml2Configuration>("Saml2SP")
-    .Bind(builder.Configuration.GetSection("Saml2:BundId"))
-    .PostConfigure<CertificateContainer>((saml2, certificateContainer) =>
-    {
-        saml2.AllowedAudienceUris.Add(saml2.Issuer);
-        saml2.DecryptionCertificates.AddRange(certificateContainer.GetCertificates());
-        saml2.SigningCertificate = certificateContainer.GetSignatureCertificate();
-    });
+services.AddKeyedScoped("BundId:EntityId", (sp, key) => 
+    sp.GetRequiredService<IOptionsSnapshot<MetadataSources>>().Value.MetadataDescriptors
+        .SingleOrDefault(x => x.EntityType == EntityType.IdentityProvider)
+        ?.EntityId
+        ?? throw new InvalidOperationException("No IdentityProvider found in Saml2:MetadataSources.")
+);
 
 // Metadata management
+services.AddOptions<MetadataSources>()
+    .Configure(opt => {
+        builder.Configuration.GetSection("Saml2:MetadataSources").Bind(opt.MetadataDescriptors);
+    })
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 services.AddSingleton<MetadataContainer>();
 services.AddHostedService<MetadataManager>();
 
-services.AddOptions<RelyingPartyOptions>()
-    .Bind(builder.Configuration.GetSection("Saml2"));       // Binds appsettings->Saml2->RelyingParties
 
 
 var app = builder.Build();

@@ -1,6 +1,9 @@
 ﻿using ITfoxtec.Identity.Saml2;
 using ITfoxtec.Identity.Saml2.MvcCore;
 using ITfoxtec.Identity.Saml2.Schemas;
+using ITfoxtec.Identity.Saml2.Schemas.Metadata;
+using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Authentication;
 
 namespace JGUZDV.BundId.SAMLProxy.Endpoints
@@ -26,12 +29,16 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
         }
 
 
-        public static IResult InitBundIdAuth(
+        public static async Task<IResult> InitBundIdAuth(
             HttpContext context,
-            LinkGenerator linkGenerator,
             string returnUrl,
-            Saml2Configuration samlConfig)
+            MetadataContainer metadata,
+            LinkGenerator linkGenerator,
+            [FromKeyedServices("Saml2IDP")] Saml2Configuration samlConfig,
+            [FromKeyedServices("BundId:EntityId")] string upstreamEntityId)
         {
+            var entityDescriptor = await metadata.GetByEntityId(upstreamEntityId);
+
             var binding = new Saml2RedirectBinding();
             binding.SetRelayStateQuery(
                 new Dictionary<string, string>
@@ -41,10 +48,12 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
             );
 
             // TODO: Read from Config / Metadata
-            var samlAuthNRequest = new Saml2AuthnRequest(samlConfig)
+            var samlAuthNRequest = new Saml2AuthnRequest(new())
             {
-                Issuer = "https://bundid.uni-mainz.de",
-                Destination = new Uri("https://int.id.bund.de/idp/profile/SAML2/Redirect/SSO"),
+                Issuer = samlConfig.Issuer,
+                Destination = entityDescriptor.IdPSsoDescriptor.SingleSignOnServices
+                    .First(x => x.Binding == new Uri("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"))
+                    .Location,
             };
 
             binding.Bind(samlAuthNRequest);
@@ -54,7 +63,7 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
 
         public static async Task<IResult> SignInBundId(
             HttpContext context,
-            Saml2Configuration samlConfig
+            [FromKeyedServices("Saml2SP")] Saml2Configuration samlConfig
             )
         {
             var httpRequest = context.Request.ToGenericHttpRequest(validate: true);
