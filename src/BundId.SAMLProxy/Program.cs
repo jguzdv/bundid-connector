@@ -1,12 +1,13 @@
 
 using ITfoxtec.Identity.Saml2;
-using ITfoxtec.Identity.Saml2.MvcCore.Configuration;
+using ITfoxtec.Identity.Saml2.Schemas;
 using JGUZDV.AspNetCore.Hosting;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
 using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
@@ -30,19 +31,14 @@ services.Configure<RazorPagesOptions>(opt =>
 
 services.AddSession();
 
-//services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-//    .AddCookie(opt =>
-//    {
-//        opt.SlidingExpiration = false;
-//        // TODO: make this configurable
-//        opt.ExpireTimeSpan = TimeSpan.FromHours(8);
-//        opt.LoginPath = "/";
-//    })
-//    .AddCookieDistributedTicketStore()
-//    .AddSaml2();
-services.AddAuthorizationCore();
+services.AddAuthentication(Saml2Constants.AuthenticationScheme)
+    .AddCookie(Saml2Constants.AuthenticationScheme, opt =>
+    {
+        opt.LoginPath = "/saml2/bund-id/auth";
+    })
+    .AddCookieDistributedTicketStore();
 
-services.AddSaml2();
+services.AddAuthorizationCore();
 
 services.AddOptions<CertificateOptions>()
     .Bind(builder.Configuration.GetSection("Saml2"))
@@ -54,13 +50,23 @@ services.AddSingleton<CertificateContainer>();
 services.AddHostedService<CertificateManager>();
 
 // Creates options e.g. for "/metadata". Creation and post configuration (PostConfigure) happens scoped on every request!
-services.AddScoped(sp => sp.GetRequiredService<IOptionsSnapshot<Saml2Configuration>>().Value);
-services.AddOptions<Saml2Configuration>()
+services.AddKeyedScoped("Saml2IDP", (sp, key) => sp.GetRequiredService<IOptionsSnapshot<Saml2Configuration>>().Get((string)key));
+services.AddOptions<Saml2Configuration>("Saml2IDP")
     .Bind(builder.Configuration.GetSection("Saml2:IDP"))
     .PostConfigure<CertificateContainer>((saml2, certificateContainer) =>
     {
         saml2.AllowedAudienceUris.Add(saml2.Issuer);
 
+        saml2.DecryptionCertificates.AddRange(certificateContainer.GetCertificates());
+        saml2.SigningCertificate = certificateContainer.GetSignatureCertificate();
+    });
+
+services.AddKeyedScoped("Saml2SP", (sp, key) => sp.GetRequiredService<IOptionsSnapshot<Saml2Configuration>>().Get((string)key));
+services.AddOptions<Saml2Configuration>("Saml2SP")
+    .Bind(builder.Configuration.GetSection("Saml2:BundId"))
+    .PostConfigure<CertificateContainer>((saml2, certificateContainer) =>
+    {
+        saml2.AllowedAudienceUris.Add(saml2.Issuer);
         saml2.DecryptionCertificates.AddRange(certificateContainer.GetCertificates());
         saml2.SigningCertificate = certificateContainer.GetSignatureCertificate();
     });
@@ -100,6 +106,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapRazorPages();
+app.MapBundIdEndpoints();
 app.MapSAMLEndpoints();
 
 app.Run();

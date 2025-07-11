@@ -15,11 +15,12 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
             var idp = saml.MapGroup("bund-id");
 
             idp.MapGet("/auth", InitBundIdAuth)
-                .WithName(nameof(InitBundIdAuth))
-                .RequireAuthorization();
-            idp.MapPost("/auth", SignInBundId)
-                .WithName(nameof(SignInBundId))
-                .RequireAuthorization();
+                .WithName(EndpointNames.BundIdAuthenticate);
+            //idp.MapPost("/auth", SignInBundId)
+            //    .WithName(nameof(SignInBundId));
+
+            endpoints.MapPost("saml2/post", SignInBundId)
+                .WithName(nameof(SignInBundId));
 
             return endpoints;
         }
@@ -39,9 +40,11 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
                 }
             );
 
+            // TODO: Read from Config / Metadata
             var samlAuthNRequest = new Saml2AuthnRequest(samlConfig)
             {
-                Issuer = "",
+                Issuer = "https://bundid.uni-mainz.de",
+                Destination = new Uri("https://int.id.bund.de/idp/profile/SAML2/Redirect/SSO"),
             };
 
             binding.Bind(samlAuthNRequest);

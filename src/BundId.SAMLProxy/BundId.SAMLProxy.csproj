@@ -6,6 +6,8 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 
 		<RootNamespace>JGUZDV.BundId.SAMLProxy</RootNamespace>
+
+		<UserSecretsId>673af439-8586-41de-8f21-33b480a0eaf1</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>

@@ -1,5 +1,4 @@
 using ITfoxtec.Identity.Saml2.Schemas.Metadata;
-using Microsoft.Extensions.Options;
 
 namespace JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
 
@@ -14,28 +13,23 @@ namespace JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
 public class MetadataContainer
 {
     // Stores EntityId -> Task. The Task tries to fetch an EntityDescriptor for the given EntityId.
-    private readonly Dictionary<string, Task<EntityDescriptor>> _metadata = [];
+    private readonly Dictionary<string, TaskCompletionSource<EntityDescriptor>> _metadataTasks = [];
+    private readonly Dictionary<string, EntityDescriptor> _metadata = [];
 
-    // All relying parties we know, needed to validate the saml authn request.
-    private readonly IOptions<RelyingPartyOptions> _options;
+    private readonly Lock _lock = new();
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<MetadataContainer> _logger;
 
-    public MetadataContainer(IOptions<RelyingPartyOptions> options,
-        IHttpClientFactory httpClientFactory,
-        ILogger<MetadataContainer> logger)
+    public void AddOrReplace(string entityId, EntityDescriptor descriptor)
     {
-        _options = options;
-        _httpClientFactory = httpClientFactory;
-        _logger = logger;
-    }
+        lock(_lock)
+        {
+            if(_metadataTasks.TryGetValue(entityId, out var existing))
+            {
+                existing.SetResult(descriptor);
+            }
 
-
-    public Task<EntityDescriptor> AddOrReplace(string entityId, Task<EntityDescriptor> descriptor)
-    {
-        _metadata[entityId] = descriptor;
-        return descriptor;
+            _metadata[entityId] = descriptor;
+        }
     }
 
     /// <summary>
@@ -48,56 +42,19 @@ public class MetadataContainer
     /// <exception cref="InvalidOperationException">When the given entityId is unknown.</exception>
     public Task<EntityDescriptor> GetByEntityId(string entityId)
     {
-        var entry = _options.Value.RelyingParties.FirstOrDefault(entry => entry.EntityId == entityId)
-            ?? throw new InvalidOperationException($"Unknown entityId {entityId}");
-
-        if (!_metadata.TryGetValue(entityId, out var value))
+        lock(_lock)
         {
-            value = AddOrReplace(entityId, LoadMetadataAsync(entry));
-        }
-
-        return value;
-    }
-
-    /// <summary>
-    /// This runs asynchronously on the thread pool. Note: It is essential to remove the
-    /// Task<EntityDescriptor> in case of an Exception, otherwise every call on GetByEntityId(...)
-    /// will get the Task's exception result.
-    /// </summary>
-    /// <param name="entityId"></param>
-    /// <param name="entry"></param>
-    /// <returns></returns>
-    /// <exception cref="MetadataLoaderException"></exception>
-    private async Task<EntityDescriptor> LoadMetadataAsync(RelyingPartyEntry entry)
-    {
-        var entityDescriptor = new EntityDescriptor();
-
-        try
-        {
-            await entityDescriptor.ReadSPSsoDescriptorFromUrlAsync(_httpClientFactory, new Uri(entry.MetadataUrl));
-
-            // This is for a very unlikely case: The configured entityId does not match to the entityId in
-            // the EntityDescriptor. Should not happen, but who knows...
-            if (entityDescriptor.EntityId != entry.EntityId)
+            if (_metadata.TryGetValue(entityId, out var metadata))
             {
-                _logger.LogError("The configured entityId is not equal to the entity id in EntityDescriptor. " +
-                    "Given EntityId: {entityId}, MetadataUrl: {metadataUrl}", entry.EntityId, entry.MetadataUrl);
-
-                throw new MetadataLoaderException("Configuration error...");
+                return Task.FromResult(metadata);
             }
+
+            if (!_metadataTasks.TryGetValue(entityId, out var existingTask))
+            {
+                existingTask = _metadataTasks[entityId] = new TaskCompletionSource<EntityDescriptor>();
+            }
+
+            return existingTask.Task;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Unexpected exception when loading metadata.");
-
-            // This is essential, so on a new request a new Task will be created. If we miss this,
-            // every call on GetByEntityId(...) will get the Task with this error/exception result.
-            _metadata.Remove(entry.EntityId);
-
-            throw new MetadataLoaderException("Unexpected exception when loading metadata.", ex);
-        }
-
-        return entityDescriptor;
     }
-
 }
