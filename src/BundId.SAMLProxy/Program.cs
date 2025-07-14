@@ -8,10 +8,12 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
-
 var builder = JGUZDVHostApplicationBuilder.CreateWebHost(args, BlazorInteractivityModes.DisableBlazor);
 var services = builder.Services;
 
+#if DEBUG
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+#endif
 
 services.AddHttpClient();
 services.AddTransient((sp) => TimeProvider.System);
@@ -52,7 +54,8 @@ services.AddOptions<Saml2Configuration>("Saml2IDP")
     .Bind(builder.Configuration.GetSection("Saml2:IDP"))
     .Configure<IConfiguration>((saml2, config) =>
     {
-        saml2.Issuer = config.GetValue<string>("Saml2:EntityId") ?? throw new InvalidOperationException("Saml2:IDP:EntityId is not configured.");
+        // BundID needs the request to be signed
+        saml2.SignAuthnRequest = true;
     })
     .PostConfigure<CertificateContainer>((saml2, certificateContainer) =>
     {
