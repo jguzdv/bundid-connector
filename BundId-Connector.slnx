@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/docs/">
+    <File Path="BundID_Anbindungsleitfaden_v1.9.pdf" />
+    <File Path="BundID_FAQs_012025.pdf" />
+    <File Path="BundID_Schnittstellenbeschreibung_10.2.0.0_V1.0 (1).pdf" />
+    <File Path="BundID_Styleguide_2024_V1.3.pdf" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/BundId.SAMLProxy/BundId.SAMLProxy.csproj" />
   </Folder>
