@@ -21,10 +21,8 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
 
             idp.MapGet("/auth", InitBundIdAuth)
                 .WithName(EndpointNames.BundIdAuthenticate);
-            //idp.MapPost("/auth", SignInBundId)
-            //    .WithName(nameof(SignInBundId));
 
-            endpoints.MapPost("saml2/post", SignInBundId)
+            idp.MapPost("/post", SignInBundId)
                 .WithName(nameof(SignInBundId));
 
             return endpoints;
