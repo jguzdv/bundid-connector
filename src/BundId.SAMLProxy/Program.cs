@@ -4,6 +4,7 @@ using JGUZDV.AspNetCore.Hosting;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
 using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
@@ -30,10 +31,12 @@ services.Configure<RazorPagesOptions>(opt =>
 
 services.AddSession();
 
-services.AddAuthentication(Saml2Constants.AuthenticationScheme)
-    .AddCookie(Saml2Constants.AuthenticationScheme, opt =>
+services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie( opt =>
     {
         opt.LoginPath = "/saml2/bund-id/auth";
+        //TODO: perhaps this should be conifgurable
+        opt.ExpireTimeSpan = TimeSpan.FromMinutes(10);
     })
     .AddCookieDistributedTicketStore();
 

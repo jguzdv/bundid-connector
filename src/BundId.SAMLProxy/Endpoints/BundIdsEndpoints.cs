@@ -3,8 +3,10 @@ using ITfoxtec.Identity.Saml2.MvcCore;
 using ITfoxtec.Identity.Saml2.Schemas;
 using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Security.Authentication;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Xml.Linq;
 
@@ -14,18 +16,15 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
     {
         public static IEndpointRouteBuilder MapBundIdEndpoints(this IEndpointRouteBuilder endpoints)
         {
-            var saml = endpoints.MapGroup("saml2");
-            saml.WithTags("SAML2");
+            var saml = endpoints.MapGroup("saml2")
+                .WithTags("SAML2");
 
             var idp = saml.MapGroup("bund-id");
 
-            idp.MapGet("/auth", InitBundIdAuth)
+            idp.MapGet("auth", InitBundIdAuth)
                 .WithName(EndpointNames.BundIdAuthenticate);
-            //idp.MapPost("/auth", SignInBundId)
-            //    .WithName(nameof(SignInBundId));
-
-            endpoints.MapPost("saml2/post", SignInBundId)
-                .WithName(nameof(SignInBundId));
+            idp.MapPost("post", SignInBundId)
+                .WithName(EndpointNames.BundIdAssertionConsumerService);
 
             return endpoints;
         }
@@ -41,6 +40,20 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
             [FromKeyedServices("BundId:EntityId")] string upstreamEntityId,
             CancellationToken ct)
         {
+#if DEBUG
+            // TODO: This is testcode to validate the SAML part of the application
+            await context.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim(BundIdAttributes.BPK2, "some-value")
+                ] ,
+                "BundId-Connector-Fake-Auth",
+                BundIdAttributes.BPK2,
+                "role"
+                )));
+
+            return Results.Redirect(returnUrl);
+#endif
+
             var entityDescriptor = await metadata.GetByEntityId(upstreamEntityId);
 
             var relayStateId = await CreateRelayState(returnUrl, distributedCache, ct);
@@ -57,6 +70,7 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
                     .First(x => x.Binding == new Uri("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect"))
                     .Location,
 
+                AssertionConsumerServiceUrl = new Uri(linkGenerator.GetUriByName(context, EndpointNames.BundIdAssertionConsumerService)!)
             };
 
             samlAuthNRequest.Extensions = new ITfoxtec.Identity.Saml2.Schemas.Extensions();
@@ -73,20 +87,21 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
                             <akdb:FINK><akdb:Enabled>true</akdb:Enabled></akdb:FINK>
                         </akdb:AuthnMethods>
                         <akdb:RequestedAttributes>
-                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Gender}" RequiredAttribute="true" />
-                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PersonalTitle}" RequiredAttribute="true" />
+                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BPK2}" RequiredAttribute="true" />
+                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Gender}" RequiredAttribute="false" />
+                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PersonalTitle}" RequiredAttribute="false" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.GivenName}" RequiredAttribute="true" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Surname}" RequiredAttribute="true" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Birthdate}" RequiredAttribute="true" />
-                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BirthName}" RequiredAttribute="true" />
+                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BirthName}" RequiredAttribute="false" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="true" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalCode}" RequiredAttribute="true" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.LocalityName}" RequiredAttribute="true" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalAddress}" RequiredAttribute="true" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Country}" RequiredAttribute="true" />
-                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Nationality}" RequiredAttribute="true" />
+                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Nationality}" RequiredAttribute="false" />
                             <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Mail}" RequiredAttribute="true" />
-                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="true" />
+                            <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="false" />
                         </akdb:RequestedAttributes>
                         <akdb:DisplayInformation>
                             <classic-ui:Version xmlns:classic-ui="https://www.akdb.de/request/2018/09/classic-ui/v1">

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Security.Claims;
 
 using ITfoxtec.Identity.Saml2;
@@ -6,6 +7,7 @@ using ITfoxtec.Identity.Saml2.MvcCore;
 using ITfoxtec.Identity.Saml2.Schemas;
 using ITfoxtec.Identity.Saml2.Schemas.Metadata;
 using JGUZDV.BundId.SAMLProxy.Resources;
+using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
 using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
 using Microsoft.IdentityModel.Tokens.Saml2;
@@ -106,8 +108,12 @@ public static class SAMLEndpoints
         [FromKeyedServices("Saml2IDP")] Saml2Configuration samlConfig,
         CertificateContainer certificateContainer,
         MetadataContainer metadataContainer,
-        ILogger<SecurityAudit> auditLogger)
+        ILoggerFactory loggerFactory,
+        ILogger<SecurityAudit> auditLogger,
+        CancellationToken ct)
     {
+        var logger = loggerFactory.CreateLogger(typeof(SAMLEndpoints).FullName!);
+
         var httpRequest = context.Request.ToGenericHttpRequest(validate: true);
         var samlRequest = httpRequest.Binding.ReadSamlRequest(httpRequest, new Saml2AuthnRequest(samlConfig));
 
@@ -116,7 +122,17 @@ public static class SAMLEndpoints
         try
         {
             // Get an existing reylingParty entry from the metadataContainer, or fetch it if it is not present.
-            relyingParty = await metadataContainer.GetByEntityId(samlRequest.Issuer);
+            var relyingPartyTask = metadataContainer.GetByEntityId(samlRequest.Issuer);
+
+            await relyingPartyTask.WaitAsync(TimeSpan.FromSeconds(5), ct);
+
+            if (!relyingPartyTask.IsCompletedSuccessfully)
+            {
+                logger.LogWarning("The EntityId {entityId} did not yield a relying party during 5 seconds. Check if the entityId is known in metadata sources", samlRequest.Issuer);
+                throw new BadHttpRequestException("SAML2:CouldNotLoadEntityId");
+            }
+
+            relyingParty = relyingPartyTask.Result;
         }
         catch (InvalidOperationException)
         {
@@ -137,22 +153,30 @@ public static class SAMLEndpoints
         {
             httpRequest.Binding.Unbind(httpRequest, saml2AuthnRequest);
 
+            var destination = relyingParty.SPSsoDescriptor.AssertionConsumerServices
+                .Where(x => x.Binding == new Uri("urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"))
+                .OrderByDescending(x => x.IsDefault)
+                .Select(x => x.Location)
+                .First();
+
             var claims = context.User.Claims;
+            var nameId = new Saml2NameIdentifier(claims.First(x => x.Type == BundIdAttributes.BPK2).Value, NameIdentifierFormats.Unspecified);
+
             saml2AuthnResponse = new Saml2AuthnResponse(rpConfig)
             {
                 InResponseTo = saml2AuthnRequest.Id,
                 Status = Saml2StatusCodes.Success,
-                Destination = relyingParty.SPSsoDescriptor.AssertionConsumerServices.First(x => x.IsDefault).Location,
+                Destination = destination,
 
-                ClaimsIdentity = new ClaimsIdentity(claims, "FIDO2", "sub", "role"),
-                NameId = new Saml2NameIdentifier(claims.First(x => x.Type == "sub").Value, NameIdentifierFormats.Unspecified),
+                ClaimsIdentity = new ClaimsIdentity(claims, "BundId", BundIdAttributes.BPK2, "role"),
+                NameId = nameId,
             };
 
             var token = saml2AuthnResponse.CreateSecurityToken(
                 relyingParty.EntityId,
                 subjectConfirmationLifetime: 5,
                 // TODO: there seems to be no ac:class for FIDO2 currently, so we made one up
-                authnContext: new Uri("urn:oasis:names:tc:SAML:2.0:ac:classes:FIDO2Passkey"),
+                authnContext: new Uri("urn:oasis:names:tc:SAML:2.0:ac:classes:BundId"),
                 issuedTokenLifetime: 60
                 );
 
