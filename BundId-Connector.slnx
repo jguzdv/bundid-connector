@@ -6,8 +6,12 @@
     <File Path="BundID_Styleguide_2024_V1.3.pdf" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="../Sustainsys.SAML2/Sustainsys.Saml2.AspNetCore2/Sustainsys.Saml2.AspNetCore2.csproj" />
-    <Project Path="../Sustainsys.SAML2/Sustainsys.Saml2/Sustainsys.Saml2.csproj" />
+    <Project Path="../Sustainsys.SAML2/Sustainsys.Saml2.AspNetCore2/Sustainsys.Saml2.AspNetCore2.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="../Sustainsys.SAML2/Sustainsys.Saml2/Sustainsys.Saml2.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
     <Project Path="src/BundId.SAMLProxy/BundId.SAMLProxy.csproj" />
   </Folder>
   <Folder Name="/test/">

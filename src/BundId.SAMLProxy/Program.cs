@@ -12,6 +12,7 @@ using Sustainsys.Saml2.Configuration;
 using Sustainsys.Saml2.Metadata;
 using Sustainsys.Saml2.Saml2P;
 using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography.Xml;
 using System.Xml.Linq;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
@@ -62,7 +63,7 @@ services.AddAuthentication(opt =>
         opt.SPOptions.AuthenticateRequestSigningBehavior = SigningBehavior.Always;
 
         opt.SPOptions.Compatibility.UnpackEntitiesDescriptorInIdentityProviderMetadata = true;
-        opt.SPOptions.MinIncomingSigningAlgorithm = "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1";
+        opt.SPOptions.Compatibility.IgnoreAuthenticationContextInResponse = true;
 
         opt.IdentityProviders.Add(new IdentityProvider(
             new EntityId(bundIdEntityId),
