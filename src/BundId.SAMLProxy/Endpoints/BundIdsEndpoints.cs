@@ -3,10 +3,8 @@ using ITfoxtec.Identity.Saml2.MvcCore;
 using ITfoxtec.Identity.Saml2.Schemas;
 using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Security.Authentication;
-using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Xml.Linq;
 
@@ -40,7 +38,7 @@ namespace JGUZDV.BundId.SAMLProxy.Endpoints
             [FromKeyedServices("BundId:EntityId")] string upstreamEntityId,
             CancellationToken ct)
         {
-#if DEBUG
+#if DEBUGn
             // TODO: This is testcode to validate the SAML part of the application
             await context.SignInAsync(new ClaimsPrincipal(new ClaimsIdentity(
                 [
