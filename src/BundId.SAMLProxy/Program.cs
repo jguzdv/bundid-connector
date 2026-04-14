@@ -185,8 +185,7 @@ List<X509Certificate2> LoadCertificate(ConfigurationManager configuration)
 
 void OnAuthenticationRequestCreated(Saml2AuthenticationRequest request, IdentityProvider provider, IDictionary<string, string> dictionary)
 {
-    request.ExtensionContents.Add(XElement.Parse(
-    $"""
+    request.ExtensionContents.Add(XElement.Parse($"""
         <akdb:AuthenticationRequest xmlns:akdb="https://www.akdb.de/request/2018/09" EnableStatusDetail="true" Version="2">
             <akdb:AuthnMethods>
                 <akdb:Authega><akdb:Enabled>true</akdb:Enabled></akdb:Authega>
@@ -198,13 +197,14 @@ void OnAuthenticationRequestCreated(Saml2AuthenticationRequest request, Identity
                 <akdb:FINK><akdb:Enabled>true</akdb:Enabled></akdb:FINK>
             </akdb:AuthnMethods>
             <akdb:RequestedAttributes>
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Gender}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BPK2}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Gender}" RequiredAttribute="false" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PersonalTitle}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.GivenName}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.GivenName}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Surname}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Birthdate}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BirthName}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BirthName}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalCode}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.LocalityName}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalAddress}" RequiredAttribute="true" />
