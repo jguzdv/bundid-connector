@@ -199,19 +199,19 @@ void OnAuthenticationRequestCreated(Saml2AuthenticationRequest request, Identity
             </akdb:AuthnMethods>
             <akdb:RequestedAttributes>
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Gender}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PersonalTitle}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.GivenName}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PersonalTitle}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.GivenName}" RequiredAttribute="false" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Surname}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Birthdate}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BirthName}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="false" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalCode}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.LocalityName}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalAddress}" RequiredAttribute="true" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Country}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Nationality}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Nationality}" RequiredAttribute="false" />
                 <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Mail}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="false" />
             </akdb:RequestedAttributes>
             <akdb:DisplayInformation>
                 <classic-ui:Version xmlns:classic-ui="https://www.akdb.de/request/2018/09/classic-ui/v1">
