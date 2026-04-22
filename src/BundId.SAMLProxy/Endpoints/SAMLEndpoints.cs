@@ -6,8 +6,9 @@ using ITfoxtec.Identity.Saml2.MvcCore;
 using ITfoxtec.Identity.Saml2.Schemas;
 using ITfoxtec.Identity.Saml2.Schemas.Metadata;
 using JGUZDV.BundId.SAMLProxy.Resources;
+using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
-using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
+using JGUZDV.Extensions.SAML2.SPMetadata;
 using Microsoft.IdentityModel.Tokens.Saml2;
 
 namespace JGUZDV.BundId.SAMLProxy.Endpoints;
@@ -34,8 +35,7 @@ public static class SAMLEndpoints
         HttpContext context,
         LinkGenerator linkGenerator,
         [FromKeyedServices("Saml2IDP")] Saml2Configuration samlConfig,
-        CertificateContainer certificateContainer,
-        MetadataContainer metadataContainer)
+        CertificateContainer certificateContainer)
     {
         var entityDescriptor = new EntityDescriptor(samlConfig)
         {
@@ -105,7 +105,7 @@ public static class SAMLEndpoints
         HttpContext context,
         [FromKeyedServices("Saml2IDP")] Saml2Configuration samlConfig,
         CertificateContainer certificateContainer,
-        MetadataContainer metadataContainer,
+        MetadataContainer<EntityDescriptor> metadataContainer,
         ILogger<SecurityAudit> auditLogger)
     {
         var httpRequest = context.Request.ToGenericHttpRequest(validate: true);
@@ -138,14 +138,18 @@ public static class SAMLEndpoints
             httpRequest.Binding.Unbind(httpRequest, saml2AuthnRequest);
 
             var claims = context.User.Claims;
+            var nameIdValue = claims.First(x => x.Type == BundIdAttributes.BPK2).Value;
+            var issuerValue = claims.First(x => x.Type == "issuer").Value;
+
             saml2AuthnResponse = new Saml2AuthnResponse(rpConfig)
             {
                 InResponseTo = saml2AuthnRequest.Id,
                 Status = Saml2StatusCodes.Success,
                 Destination = relyingParty.SPSsoDescriptor.AssertionConsumerServices.First(x => x.IsDefault).Location,
 
-                ClaimsIdentity = new ClaimsIdentity(claims, "FIDO2", "sub", "role"),
-                NameId = new Saml2NameIdentifier(claims.First(x => x.Type == "sub").Value, NameIdentifierFormats.Unspecified),
+                ClaimsIdentity = new ClaimsIdentity(claims, "BundID", BundIdAttributes.BPK2, "role"),
+                
+                NameId = new Saml2NameIdentifier($"{nameIdValue}@{issuerValue}", NameIdentifierFormats.Persistent),
             };
 
             var token = saml2AuthnResponse.CreateSecurityToken(
@@ -160,7 +164,7 @@ public static class SAMLEndpoints
         }
         catch (Exception exc)
         {
-            Debug.WriteLine($"Saml 2.0 Authn Request error: {exc.ToString()}\nSaml Auth Request: '{saml2AuthnRequest.XmlDocument?.OuterXml}'\nQuery String: {context.Request.QueryString}");
+            auditLogger.LogWarning($"Saml 2.0 Authn Request error: {exc.ToString()}\nSaml Auth Request: '{saml2AuthnRequest.XmlDocument?.OuterXml}'\nQuery String: {context.Request.QueryString}");
             saml2AuthnResponse = new Saml2AuthnResponse(rpConfig)
             {
                 InResponseTo = saml2AuthnRequest.Id,

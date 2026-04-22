@@ -2,7 +2,6 @@ using JGUZDV.AspNetCore.Hosting;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
-using JGUZDV.BundId.SAMLProxy.SAML2.MetadataHandling;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
@@ -11,8 +10,8 @@ using Sustainsys.Saml2.AspNetCore2;
 using Sustainsys.Saml2.Configuration;
 using Sustainsys.Saml2.Metadata;
 using Sustainsys.Saml2.Saml2P;
+using Sustainsys.Saml2.WebSso;
 using System.Security.Cryptography.X509Certificates;
-using System.Security.Cryptography.Xml;
 using System.Xml.Linq;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
@@ -43,7 +42,13 @@ services.AddAuthentication(opt =>
     opt.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     opt.DefaultChallengeScheme = Saml2Defaults.Scheme;
 })
-    .AddCookie()
+    .AddCookie(opt =>
+    {
+        if(builder.Environment.IsDevelopment())
+        {
+            opt.ExpireTimeSpan = TimeSpan.FromMinutes(1);
+        }
+    })
     .AddSaml2(opt =>
     {
         var spEntityId = builder.Configuration["SAML2:EntityId"]
@@ -58,29 +63,31 @@ services.AddAuthentication(opt =>
         }
 
         opt.SPOptions.EntityId = new EntityId(spEntityId);
-        
-        opt.SPOptions.ModulePath = "/saml2/bund-id";
+
+        opt.SPOptions.ModulePath = "/saml2/bund-id/post";
         opt.SPOptions.AuthenticateRequestSigningBehavior = SigningBehavior.Always;
 
         opt.SPOptions.Compatibility.UnpackEntitiesDescriptorInIdentityProviderMetadata = true;
         opt.SPOptions.Compatibility.IgnoreAuthenticationContextInResponse = true;
 
-        opt.IdentityProviders.Add(new IdentityProvider(
-            new EntityId(bundIdEntityId),
-            opt.SPOptions
+        opt.IdentityProviders.Add(
+            new IdentityProvider(
+                new EntityId(bundIdEntityId),
+                opt.SPOptions
             )
-        {
-            LoadMetadata = true,
-        });
+            {
+                LoadMetadata = true,
+            });
 
         opt.Notifications.AuthenticationRequestCreated += OnAuthenticationRequestCreated;
+        opt.Notifications.AcsCommandResultCreated += OnAcsCommandResultCreated;
     })
     .AddCookieDistributedTicketStore();
 
 services.AddAuthorizationCore();
 
 services.AddOptions<CertificateOptions>()
-    .Bind(builder.Configuration.GetSection("Saml2"))
+    .Bind(builder.Configuration.GetSection("SAML2"))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -91,7 +98,7 @@ services.AddHostedService<CertificateManager>();
 // Creates options e.g. for "/metadata". Creation and post configuration (PostConfigure) happens scoped on every request!
 services.AddKeyedScoped("Saml2IDP", (sp, key) => sp.GetRequiredService<IOptionsSnapshot<ITfoxtec.Identity.Saml2.Saml2Configuration>>().Get((string)key));
 services.AddOptions<ITfoxtec.Identity.Saml2.Saml2Configuration>("Saml2IDP")
-    .Bind(builder.Configuration.GetSection("Saml2:IDP"))
+    .Bind(builder.Configuration.GetSection("SAML2:IDP"))
     .Configure<IConfiguration>((saml2, config) =>
     {
         // BundID needs the request to be signed
@@ -106,23 +113,15 @@ services.AddOptions<ITfoxtec.Identity.Saml2.Saml2Configuration>("Saml2IDP")
     });
 
 services.AddKeyedScoped("BundId:EntityId", (sp, key) => 
-    sp.GetRequiredService<IOptionsSnapshot<MetadataSources>>().Value.MetadataDescriptors
-        .SingleOrDefault(x => x.EntityType == EntityType.IdentityProvider)
-        ?.EntityId
-        ?? throw new InvalidOperationException("No IdentityProvider found in Saml2:MetadataSources.")
+    sp.GetRequiredService<IConfiguration>().GetValue<string>("SAML2:BundId:EntityId")
+        ?? throw new InvalidOperationException("No IdentityProvider found in SAML2:BundId:EntityId.")
 );
 
-// Metadata management
-services.AddOptions<MetadataSources>()
-    .Configure(opt => {
-        builder.Configuration.GetSection("Saml2:MetadataSources").Bind(opt.MetadataDescriptors);
-    })
+
+services.AddSaml2MetadataManager<ITfoxtec.Identity.Saml2.Schemas.Metadata.EntityDescriptor, ITFoxtecSaml2MetadataLoader>()
+    .BindConfiguration("SAML2:IDP")
     .ValidateDataAnnotations()
     .ValidateOnStart();
-
-services.AddSingleton<MetadataContainer>();
-services.AddHostedService<MetadataManager>();
-
 
 
 var app = builder.Build();
@@ -152,7 +151,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapRazorPages();
-app.MapBundIdEndpoints();
+//app.MapBundIdEndpoints();
 app.MapSAMLEndpoints();
 
 app.Run();
@@ -197,21 +196,21 @@ void OnAuthenticationRequestCreated(Saml2AuthenticationRequest request, Identity
                 <akdb:FINK><akdb:Enabled>true</akdb:Enabled></akdb:FINK>
             </akdb:AuthnMethods>
             <akdb:RequestedAttributes>
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BPK2}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Gender}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PersonalTitle}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.GivenName}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Surname}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Birthdate}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.BirthName}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalCode}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.LocalityName}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.PostalAddress}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Country}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Nationality}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.Mail}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="urn:oid:{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.BPK2}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.Gender}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.PersonalTitle}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.GivenName}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.Surname}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.Birthdate}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.BirthName}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.PostalCode}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.LocalityName}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.PostalAddress}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.Country}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.Nationality}" RequiredAttribute="false" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.Mail}" RequiredAttribute="true" />
+                <akdb:RequestedAttribute Name="{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="false" />
             </akdb:RequestedAttributes>
             <akdb:DisplayInformation>
                 <classic-ui:Version xmlns:classic-ui="https://www.akdb.de/request/2018/09/classic-ui/v1">
@@ -224,4 +223,9 @@ void OnAuthenticationRequestCreated(Saml2AuthenticationRequest request, Identity
         </akdb:AuthenticationRequest>
         """
     ));
+}
+
+void OnAcsCommandResultCreated(CommandResult result, Saml2Response response)
+{
+    result.Principal.Identities.First().AddClaim(new("issuer", response.Issuer.Id));
 }
