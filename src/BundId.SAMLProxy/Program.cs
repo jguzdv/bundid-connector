@@ -1,7 +1,7 @@
 using JGUZDV.AspNetCore.Hosting;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2;
-using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
+using JGUZDV.Extensions.SAML2.Certificates;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
@@ -9,10 +9,6 @@ using Sustainsys.Saml2;
 using Sustainsys.Saml2.AspNetCore2;
 using Sustainsys.Saml2.Configuration;
 using Sustainsys.Saml2.Metadata;
-using Sustainsys.Saml2.Saml2P;
-using Sustainsys.Saml2.WebSso;
-using System.Security.Cryptography.X509Certificates;
-using System.Xml.Linq;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
 var builder = JGUZDVHostApplicationBuilder.CreateWebHost(args, BlazorInteractivityModes.DisableBlazor);
@@ -48,6 +44,8 @@ services.AddAuthentication(opt =>
         {
             opt.ExpireTimeSpan = TimeSpan.FromMinutes(1);
         }
+
+        opt.ExpireTimeSpan = TimeSpan.FromMinutes(15);
     })
     .AddSaml2(opt =>
     {
@@ -56,7 +54,7 @@ services.AddAuthentication(opt =>
         var bundIdEntityId = builder.Configuration["SAML2:BundId:EntityId"]
             ?? throw new ArgumentNullException("SAML2:BundId:EntityId");
 
-        var certificates = LoadCertificate(builder.Configuration);
+        var certificates = BundIDHelpers.LoadCertificate(builder.Configuration);
         foreach (var cert in certificates)
         {
             opt.SPOptions.ServiceCertificates.Add(cert);
@@ -79,21 +77,13 @@ services.AddAuthentication(opt =>
                 LoadMetadata = true,
             });
 
-        opt.Notifications.AuthenticationRequestCreated += OnAuthenticationRequestCreated;
-        opt.Notifications.AcsCommandResultCreated += OnAcsCommandResultCreated;
+        opt.Notifications.AuthenticationRequestCreated += BundIDHelpers.OnAuthenticationRequestCreated;
+        opt.Notifications.AcsCommandResultCreated += BundIDHelpers.OnAcsCommandResultCreated;
     })
     .AddCookieDistributedTicketStore();
 
 services.AddAuthorizationCore();
 
-services.AddOptions<CertificateOptions>()
-    .Bind(builder.Configuration.GetSection("SAML2"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-// Certificate management
-services.AddSingleton<CertificateContainer>();
-services.AddHostedService<CertificateManager>();
 
 // Creates options e.g. for "/metadata". Creation and post configuration (PostConfigure) happens scoped on every request!
 services.AddKeyedScoped("Saml2IDP", (sp, key) => sp.GetRequiredService<IOptionsSnapshot<ITfoxtec.Identity.Saml2.Saml2Configuration>>().Get((string)key));
@@ -112,14 +102,15 @@ services.AddOptions<ITfoxtec.Identity.Saml2.Saml2Configuration>("Saml2IDP")
         saml2.SigningCertificate = certificateContainer.GetSignatureCertificate();
     });
 
-services.AddKeyedScoped("BundId:EntityId", (sp, key) => 
-    sp.GetRequiredService<IConfiguration>().GetValue<string>("SAML2:BundId:EntityId")
-        ?? throw new InvalidOperationException("No IdentityProvider found in SAML2:BundId:EntityId.")
-);
-
 
 services.AddSaml2MetadataManager<ITfoxtec.Identity.Saml2.Schemas.Metadata.EntityDescriptor, ITFoxtecSaml2MetadataLoader>()
     .BindConfiguration("SAML2:IDP")
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+services.AddSaml2CertificateManager();
+services.AddOptions<CertificateOptions>()
+    .Bind(builder.Configuration.GetSection("SAML2:IDP"))
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
@@ -155,77 +146,3 @@ app.MapRazorPages();
 app.MapSAMLEndpoints();
 
 app.Run();
-
-
-List<X509Certificate2> LoadCertificate(ConfigurationManager configuration)
-{
-    var certPath = configuration["Saml2:CertificatesPath"]
-        ?? throw new ArgumentNullException("Saml2:CertificatesPath");
-
-    var certPassword = configuration["Saml2:CertificatePassword"];
-
-    var result = new List<X509Certificate2>();
-
-    foreach (var certFile in Directory.GetFiles(certPath, "*.pfx"))
-    {
-        try
-        {
-            var cert = X509CertificateLoader.LoadPkcs12FromFile(certFile, certPassword);
-            result.Add(cert);
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to load certificate from {certFile}.", ex);
-        }
-    }
-
-    return result.FindAll(cert => cert != null && cert.HasPrivateKey && cert.NotAfter > DateTimeOffset.UtcNow);
-}
-
-void OnAuthenticationRequestCreated(Saml2AuthenticationRequest request, IdentityProvider provider, IDictionary<string, string> dictionary)
-{
-    request.ExtensionContents.Add(XElement.Parse($"""
-        <akdb:AuthenticationRequest xmlns:akdb="https://www.akdb.de/request/2018/09" EnableStatusDetail="true" Version="2">
-            <akdb:AuthnMethods>
-                <akdb:Authega><akdb:Enabled>true</akdb:Enabled></akdb:Authega>
-                <akdb:Benutzername><akdb:Enabled>true</akdb:Enabled></akdb:Benutzername>
-                <akdb:Diia><akdb:Enabled>true</akdb:Enabled></akdb:Diia>
-                <akdb:eID><akdb:Enabled>true</akdb:Enabled></akdb:eID>
-                <akdb:eIDAS><akdb:Enabled>true</akdb:Enabled></akdb:eIDAS>
-                <akdb:Elster><akdb:Enabled>true</akdb:Enabled></akdb:Elster>
-                <akdb:FINK><akdb:Enabled>true</akdb:Enabled></akdb:FINK>
-            </akdb:AuthnMethods>
-            <akdb:RequestedAttributes>
-                <akdb:RequestedAttribute Name="{BundIdAttributes.BPK2}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.Gender}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.PersonalTitle}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.GivenName}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.Surname}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.Birthdate}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.BirthName}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.PlaceOfBirth}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.PostalCode}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.LocalityName}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.PostalAddress}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.Country}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.Nationality}" RequiredAttribute="false" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.Mail}" RequiredAttribute="true" />
-                <akdb:RequestedAttribute Name="{BundIdAttributes.EIDCitizenQaaLevel}" RequiredAttribute="false" />
-            </akdb:RequestedAttributes>
-            <akdb:DisplayInformation>
-                <classic-ui:Version xmlns:classic-ui="https://www.akdb.de/request/2018/09/classic-ui/v1">
-                    <classic-ui:OrganizationDisplayName>
-                        <![CDATA[Johannes Gutenberg-Universität Mainz]]>
-                    </classic-ui:OrganizationDisplayName>
-                    <classic-ui:Lang>de</classic-ui:Lang>
-                </classic-ui:Version>
-            </akdb:DisplayInformation>
-        </akdb:AuthenticationRequest>
-        """
-    ));
-}
-
-void OnAcsCommandResultCreated(CommandResult result, Saml2Response response)
-{
-    result.Principal.Identities.First().AddClaim(new("issuer", response.Issuer.Id));
-}

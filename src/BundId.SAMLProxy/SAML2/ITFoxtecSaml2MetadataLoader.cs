@@ -1,5 +1,5 @@
 ﻿using ITfoxtec.Identity.Saml2.Schemas.Metadata;
-using JGUZDV.Extensions.SAML2.SPMetadata;
+using JGUZDV.Extensions.SAML2.Metadata;
 
 namespace JGUZDV.BundId.SAMLProxy.SAML2
 {
