@@ -7,8 +7,8 @@ using ITfoxtec.Identity.Saml2.Schemas;
 using ITfoxtec.Identity.Saml2.Schemas.Metadata;
 using JGUZDV.BundId.SAMLProxy.Resources;
 using JGUZDV.BundId.SAMLProxy.SAML2;
-using JGUZDV.BundId.SAMLProxy.SAML2.CertificateHandling;
-using JGUZDV.Extensions.SAML2.SPMetadata;
+using JGUZDV.Extensions.SAML2.Certificates;
+using JGUZDV.Extensions.SAML2.Metadata;
 using Microsoft.IdentityModel.Tokens.Saml2;
 
 namespace JGUZDV.BundId.SAMLProxy.Endpoints;
@@ -155,8 +155,8 @@ public static class SAMLEndpoints
             var token = saml2AuthnResponse.CreateSecurityToken(
                 relyingParty.EntityId,
                 subjectConfirmationLifetime: 5,
-                // TODO: there seems to be no ac:class for FIDO2 currently, so we made one up
-                authnContext: new Uri("urn:oasis:names:tc:SAML:2.0:ac:classes:FIDO2Passkey"),
+                // SAML2 will most likely not get new authnContext classes, so we fallback to unspecified.
+                authnContext: new Uri("urn:oasis:names:tc:SAML:2.0:ac:classes:Unspecified"),
                 issuedTokenLifetime: 60
                 );
 

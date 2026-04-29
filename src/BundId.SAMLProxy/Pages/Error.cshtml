@@ -1,0 +1,15 @@
+﻿@page "/Error/{errorStatusCode:int?}"
+@model JGUZDV.PasskeyAuth.Pages.ErrorModel;
+
+<body>
+    <div id="app" class="jbs-app">
+        <div class="px-2 d-flex flex-column align-items-center justify-content-center" style="min-height: 100dvh;">
+            <div class="mt-2 h1">
+                🙁
+            </div>
+            <div class="mt-2">
+                @Model.ErrorMessage
+            </div>
+        </div>
+    </div>
+</body>

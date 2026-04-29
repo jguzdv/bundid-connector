@@ -81,6 +81,29 @@ internal static class BundIDHelpers
 
     public static void OnAcsCommandResultCreated(CommandResult result, Saml2Response response)
     {
-        result.Principal.Identities.First().AddClaim(new("issuer", response.Issuer.Id));
+        // If the user was successfully authenticated via BundID, we'll try to locate him in our local LDAP and add the UPN as claim.
+        // This will allow us to 1) identify, if we have a new BundID or an known user.
+        // Also we'll add the issuer of the SAML response as claim.
+
+        // First check, if the response indicates success
+        if(response.Status != Saml2StatusCode.Success)
+        {
+            return;
+        }
+
+        var identity = result.Principal.Identities.First();
+
+        // Add the issueer of the SAML response.
+        identity.AddClaim(new("issuer", response.Issuer.Id));
+
+        // Try to get the BPK2 claim from the response.
+        var bpk2Claim = identity.FindFirst(BundIdAttributes.BPK2)?.Value;
+
+        if (string.IsNullOrEmpty(bpk2Claim)) 
+        {
+            throw new InvalidOperationException("bpk2 claim is missing in the SAML response.");
+        }
+
+
     }
 }

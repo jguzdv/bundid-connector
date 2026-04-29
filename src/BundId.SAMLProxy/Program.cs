@@ -1,4 +1,5 @@
 using JGUZDV.AspNetCore.Hosting;
+using JGUZDV.BundId.SAMLProxy;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.Extensions.SAML2.Certificates;
@@ -33,6 +34,7 @@ services.Configure<RazorPagesOptions>(opt =>
 
 services.AddSession();
 
+services.AddScoped<BundIDCookieAuthenticationEvents>();
 services.AddAuthentication(opt =>
 {
     opt.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -46,6 +48,7 @@ services.AddAuthentication(opt =>
         }
 
         opt.ExpireTimeSpan = TimeSpan.FromMinutes(15);
+        opt.EventsType = typeof(BundIDCookieAuthenticationEvents);
     })
     .AddSaml2(opt =>
     {
@@ -124,7 +127,6 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error");
-    //app.UseStatusCodePagesWithReExecute("/Error/{0}");
     app.UseHsts();
 }
 
@@ -142,7 +144,6 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapRazorPages();
-//app.MapBundIdEndpoints();
 app.MapSAMLEndpoints();
 
 app.Run();

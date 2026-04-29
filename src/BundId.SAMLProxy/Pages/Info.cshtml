@@ -1,4 +1,15 @@
 ﻿@page
-@model JGUZDV.BundId.SAMLProxy.Pages.InfoModel
-@{
+@if(User.Identity?.IsAuthenticated == true)
+{
+    <div class="alert alert-success d-flex flex-column align-items-center justify-content-center">
+        <div class="mt-2 fs-1">✅</div>
+        <div class="mt-2">Die Anmeldung mit BundID war erfolgreich</div>
+
+        <div class="mt-2 font-monospace">@User.FindFirst("bpk2")!.Value</div>
+    </div>
 }
+
+<h1>BundID-Anmeldedaten</h1>
+<pre>
+    @string.Join("\r\n", Model.User.Claims.Select(x => $"{x.Type}: {x.Value}"))
+</pre>
