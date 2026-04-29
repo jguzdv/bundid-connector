@@ -23,9 +23,9 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(UseLocalSaml2)' == 'true'">
-		<ProjectReference Include="..\..\..\Sustainsys.SAML2\Sustainsys.Saml2.AspNetCore2\Sustainsys.Saml2.AspNetCore2.csproj" />
+		<ProjectReference Include="..\..\..\Worktrees\Sustainsys-v3\src\foss\Sustainsys.Saml2\Sustainsys.Saml2.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalSaml2)' != 'true'">
-		<PackageReference Include="Sustainsys.Saml2.AspNetCore2" Version="2.11.0" />
+		<PackageReference Include="Sustainsys.Saml2" Version="3.0.*" />
 	</ItemGroup>
 </Project>

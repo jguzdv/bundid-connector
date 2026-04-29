@@ -4,14 +4,14 @@ using JGUZDV.BundId.SAMLProxy;
 using JGUZDV.BundId.SAMLProxy.ActiveDirectory.Extensions;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2;
+using JGUZDV.BundId.SAMLProxy.SustainsysExt;
 using JGUZDV.Extensions.SAML2.Certificates;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 using Sustainsys.Saml2;
-using Sustainsys.Saml2.AspNetCore2;
-using Sustainsys.Saml2.Configuration;
-using Sustainsys.Saml2.Metadata;
+using Sustainsys.Saml2.AspNetCore;
+using Sustainsys.Saml2.Services;
 using BlazorInteractivityModes = JGUZDV.AspNetCore.Hosting.Components.BlazorInteractivityModes;
 
 var builder = JGUZDVHostApplicationBuilder.CreateWebHost(args, BlazorInteractivityModes.DisableBlazor);
@@ -32,6 +32,9 @@ services.AddBundIdActiveDirectoryServices("ActiveDirectory");
 services.AddPropertyReader();
 services.AddClaimProvider();
 
+services.AddSingleton<IIdentityProviderConfigurationResolver, BundIdIdentityProviderConfigurationResolver>();
+
+
 services.Configure<RazorPagesOptions>(opt =>
 {
     opt.Conventions.AuthorizePage("/Info");
@@ -39,11 +42,15 @@ services.Configure<RazorPagesOptions>(opt =>
 
 services.AddSession();
 
+
+
 services.AddScoped<BundIDCookieAuthenticationEvents>();
+services.AddSingleton<BundIDSaml2AuthenticationEvents>();
+
 services.AddAuthentication(opt =>
 {
     opt.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    opt.DefaultChallengeScheme = Saml2Defaults.Scheme;
+    opt.DefaultChallengeScheme = Saml2Defaults.AuthenticationScheme;
 })
     .AddCookie(opt =>
     {
@@ -63,30 +70,34 @@ services.AddAuthentication(opt =>
             ?? throw new ArgumentNullException("SAML2:BundId:EntityId");
 
         var certificates = BundIDHelpers.LoadCertificate(builder.Configuration);
-        foreach (var cert in certificates)
-        {
-            opt.SPOptions.ServiceCertificates.Add(cert);
-        }
 
-        opt.SPOptions.EntityId = new EntityId(spEntityId);
+        opt.EntityId = new(spEntityId);
+        opt.IdentityProvider.EntityId = bundIdEntityId;
 
-        opt.SPOptions.ModulePath = "/saml2/bund-id/post";
-        opt.SPOptions.AuthenticateRequestSigningBehavior = SigningBehavior.Always;
+        opt.IdentityProvider.LoadMetadata = true;
+        opt.IdentityProvider.AllowedAlgorithms = [
+            .. opt.IdentityProvider.AllowedAlgorithms, 
+            "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
+        ];
 
-        opt.SPOptions.Compatibility.UnpackEntitiesDescriptorInIdentityProviderMetadata = true;
-        opt.SPOptions.Compatibility.IgnoreAuthenticationContextInResponse = true;
+        opt.EventsType = typeof(BundIDSaml2AuthenticationEvents);
+        opt.SigningCertificate = certificates.FirstOrDefault(c => c.HasPrivateKey)
+            ?? throw new InvalidOperationException("No signing certificate with private key found.");
 
-        opt.IdentityProviders.Add(
-            new IdentityProvider(
-                new EntityId(bundIdEntityId),
-                opt.SPOptions
-            )
-            {
-                LoadMetadata = true,
-            });
+        // TODO:
+        //opt.
+        //foreach (var cert in certificates)
+        //{
+        //    opt.SPOptions.ServiceCertificates.Add(cert);
+        //}
 
-        opt.Notifications.AuthenticationRequestCreated += BundIDHelpers.OnAuthenticationRequestCreated;
-        opt.Notifications.AcsCommandResultCreated += BundIDHelpers.OnAcsCommandResultCreated;
+        //opt.SPOptions.EntityId = new EntityId(spEntityId);
+
+        //opt.SPOptions.ModulePath = "/saml2/bund-id/post";
+        //opt.SPOptions.AuthenticateRequestSigningBehavior = SigningBehavior.Always;
+
+        //opt.SPOptions.Compatibility.UnpackEntitiesDescriptorInIdentityProviderMetadata = true;
+        //opt.SPOptions.Compatibility.IgnoreAuthenticationContextInResponse = true;
     })
     .AddCookieDistributedTicketStore();
 
