@@ -1,5 +1,7 @@
+using JGUZDV.ActiveDirectory;
 using JGUZDV.AspNetCore.Hosting;
 using JGUZDV.BundId.SAMLProxy;
+using JGUZDV.BundId.SAMLProxy.ActiveDirectory.Extensions;
 using JGUZDV.BundId.SAMLProxy.Endpoints;
 using JGUZDV.BundId.SAMLProxy.SAML2;
 using JGUZDV.Extensions.SAML2.Certificates;
@@ -26,11 +28,14 @@ services.AddTransient((sp) => TimeProvider.System);
 services.AddRazorPages()
     .AddViewLocalization();
 
+services.AddBundIdActiveDirectoryServices("ActiveDirectory");
+services.AddPropertyReader();
+services.AddClaimProvider();
+
 services.Configure<RazorPagesOptions>(opt =>
 {
     opt.Conventions.AuthorizePage("/Info");
 });
-
 
 services.AddSession();
 
