@@ -1,11 +1,12 @@
 ﻿@page
+@using JGUZDV.BundId.SAMLProxy.SAML2
 @if(User.Identity?.IsAuthenticated == true)
 {
     <div class="alert alert-success d-flex flex-column align-items-center justify-content-center">
         <div class="mt-2 fs-1">✅</div>
         <div class="mt-2">Die Anmeldung mit BundID war erfolgreich</div>
 
-        <div class="mt-2 font-monospace">@User.FindFirst("bpk2")!.Value</div>
+        <div class="mt-2 font-monospace">@User.FindFirst(BundIdAttributes.BPK2)!.Value</div>
     </div>
 }
 
