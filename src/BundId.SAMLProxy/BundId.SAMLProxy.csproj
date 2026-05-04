@@ -23,7 +23,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(UseLocalSaml2)' == 'true'">
-		<ProjectReference Include="..\..\..\Sustainsys.SAML2\Sustainsys.Saml2.AspNetCore2\Sustainsys.Saml2.AspNetCore2.csproj" />
+		<ProjectReference Include="D:\Sustainsys.SAML2\Sustainsys.Saml2.AspNetCore2\Sustainsys.Saml2.AspNetCore2.csproj" />
 	</ItemGroup>
 	<ItemGroup Condition="'$(UseLocalSaml2)' != 'true'">
 		<PackageReference Include="Sustainsys.Saml2.AspNetCore2" Version="2.11.0" />
