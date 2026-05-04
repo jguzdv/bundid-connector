@@ -69,6 +69,8 @@ services.AddAuthentication(opt =>
         var bundIdEntityId = builder.Configuration["SAML2:BundId:EntityId"]
             ?? throw new ArgumentNullException("SAML2:BundId:EntityId");
 
+        opt.CallbackPath = "/saml2/bund-id/post";
+
         var certificates = BundIDHelpers.LoadCertificate(builder.Configuration);
 
         opt.EntityId = new(spEntityId);
