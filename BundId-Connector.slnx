@@ -21,6 +21,7 @@
     <Project Path="../Worktrees/Sustainsys-v3/src/foss/Sustainsys.Saml2/Sustainsys.Saml2.csproj" />
   </Folder>
   <Folder Name="/test/">
+    <Project Path="test/BundID.RedirectBindingTest/BundID.RedirectBindingTest.csproj" Id="58153db0-69c8-43ad-ba6f-7a1c6e9fa55b" />
     <Project Path="test/BundID.TestSP/BundId.TestSP.csproj" />
   </Folder>
 </Solution>
