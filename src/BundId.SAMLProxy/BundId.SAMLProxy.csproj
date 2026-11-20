@@ -8,24 +8,17 @@
 		<RootNamespace>JGUZDV.BundId.SAMLProxy</RootNamespace>
 
 		<UserSecretsId>673af439-8586-41de-8f21-33b480a0eaf1</UserSecretsId>
-		<UseLocalSaml2>true</UseLocalSaml2>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ITfoxtec.Identity.Saml2.MvcCore" Version="4.17.0" />
-		<PackageReference Include="JGUZDV.ActiveDirectory" Version="1.4.1" />
+		<PackageReference Include="ITfoxtec.Identity.Saml2.MvcCore" Version="4.22.3" />
+		<PackageReference Include="JGUZDV.ActiveDirectory" Version="1.5.0" />
 
-		<PackageReference Include="JGUZDV.AspNetCore.Authentication.Cookies" Version="1.0.0" />
-		<PackageReference Include="JGUZDV.AspNetCore.Hosting" Version="1.6.0" />
-		<PackageReference Include="JGUZDV.AspNetCore.DataProtection" Version="2.0.1" />
-		<PackageReference Include="JGUZDV.AspNetCore.Logging" Version="1.2.14" />
-		<PackageReference Include="JGUZDV.Extensions.SAML2" Version="1.0.0" />
+		<PackageReference Include="JGUZDV.AspNetCore.Hosting" Version="1.10.2" />
+		<PackageReference Include="JGUZDV.Extensions.SAML2" Version="1.1.0" />
 	</ItemGroup>
-
-	<ItemGroup Condition="'$(UseLocalSaml2)' == 'true'">
-		<ProjectReference Include="D:\Sustainsys.SAML2\Sustainsys.Saml2.AspNetCore2\Sustainsys.Saml2.AspNetCore2.csproj" />
-	</ItemGroup>
-	<ItemGroup Condition="'$(UseLocalSaml2)' != 'true'">
-		<PackageReference Include="Sustainsys.Saml2.AspNetCore2" Version="2.11.0" />
+	
+	<ItemGroup>
+	  <ProjectReference Include="..\..\Sustainsys.SAML2\Sustainsys.Saml2.AspNetCore2\Sustainsys.Saml2.AspNetCore2.csproj" />
 	</ItemGroup>
 </Project>
