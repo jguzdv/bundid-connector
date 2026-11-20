@@ -1,0 +1,3 @@
+[submodule "Sustainsys.SAML2"]
+	path = Sustainsys.SAML2
+	url = https://github.com/jguzdv/Sustainsys.SAML2
